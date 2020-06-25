@@ -152,18 +152,22 @@ class Net:
             for j, node in enumerate(layer.nodes):
                 node.weights_out = [n.weights_in[j+1] for n in next_layer.nodes]
 
-    def train(self, X = [[1]], y= [2], n_epochs=1, batch_size=128, lr=.1):
+    def train(self, X, y, n_epochs, lr):
 
         # For each epoch...
         for epoch in range(n_epochs):
             print()
             print(f"######## Epoch:  {epoch}")
 
+            # Shuffle observations for each epoch
+            n_obs = len(X)
+            idx_shuffle = np.random.permutation(n_obs)
+
             # SGD:  for each row, sample or observation of data
-            for i, observation in enumerate(X):
+            for i, idx in enumerate(idx_shuffle):
 
                 # Add bias to inputs
-                inputs = [1] + observation
+                inputs = [1] + X[idx]
 
                 # Forward propagation
                 for layer in self.layers:
@@ -178,7 +182,7 @@ class Net:
                 # Special case single output
                 node = self.layers[-1].nodes[0]
                 y_hat = node.u
-                node.error = 2 * (y_hat - y[i])
+                node.error = 2 * (y_hat - y[idx])
                 if node.act == "relu":
                     if node.z >= 0:
                         fprime = 1
@@ -213,5 +217,5 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=1, n_hidden_layers=1, hidden_dim=1)
-model.train(n_epochs=30)
+model = Net(n_inputs=2, n_hidden_layers=2, hidden_dim=20)
+model.train(X = [[1, 1], [2, 2], [3, 3]], y= [1, 8, 18], n_epochs=100, lr=.1)

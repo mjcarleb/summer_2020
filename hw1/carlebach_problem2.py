@@ -7,31 +7,41 @@ class Node:
     Each node contains the following:
         - node_id:  unique id
         - act:  specifies type of activation function (e.g, "relu")
-        - weights:  list of values for each input (including bias)
-        - z:  sum of (weights * inputs)
+        - inputs:  list of values passed in the forward direction
+        - weights_in:  list of weights for each incoming connection (including bias)
+        - z:  sum of (inputs * weights_in)
         - u:  act(z)
-        - error:  partial of the loss with respect to out
-        - partials:  partials of the los with respect to each weight
+        - weights_out:  list of weights for each outgoing connection
+        - error:  partials of the loss with respect to output (e.g., u)
+        - partials:  partials of the loss with respect to each weight_in (for each node in layer and weight_in)
     """
 
     # Class attribute to give id to each node created
     class_id = 0
 
-    def __init__(self, weights):
+    def __init__(self, weights_in):
 
         Node.class_id += 1
         self.node_id = Node.class_id
         self.act = "relu"
+        self.inputs = None
+        self.weights_in = weights_in
 
-        self.weights = weights
-        self.z = None
-        self.u = None
-        self.error = None
-        self.partials = []
+        # Calculated on forward propagation
+        self.z = None              # single sum of inputs * weights_in
+        self.u = None              # single u to each outgoing node
+
+        # Added after calculating all weights_in for network, just for convenience
+        self.weights_out = []
+
+        # Calculate on backward propagation
+        self.error = None           # partial L wrt u
+        self.partials = None     # list for each incoming weight
 
     def forward(self, inputs):
 
-        self.z = (np.array(inputs) * np.array(self.weights)).sum()
+        self.inputs = inputs
+        self.z = (np.array(inputs) * np.array(self.weights_in)).sum()
 
         if self.act == "relu":
 
@@ -42,6 +52,20 @@ class Node:
 
         else:
             raise NotImplemented
+
+    def backward(self, error, fprime):
+
+        self.error = error * fprime * self.weights_out[0]
+
+        if self.act == "relu":
+            if self.z >= 0:
+                fprime = 1
+            else:
+                fprime = 0
+        else:
+            raise NotImplemented
+
+        self.partials = [self.error * fprime * i for i in self.inputs]
 
 class FC_Layer:
 
@@ -64,9 +88,8 @@ class FC_Layer:
 
         self.nodes = []
         for i in range(nnodes):
-            weights = np.random.random(input_dim + 1)
-            weights = np.zeros(input_dim + 1)
-            self.nodes.append(Node(weights=weights))
+            weights_in = np.random.random(input_dim + 1)
+            self.nodes.append(Node(weights_in=weights_in))
 
     def forward(self, inputs):
 
@@ -78,6 +101,24 @@ class FC_Layer:
             # node.u = act(node.z)
             node.forward(inputs=inputs)
 
+    def backward(self, error):
+
+        # For each node in the layer...
+        for node in self.nodes:
+
+            # Calculate z and u for each node and store in node
+            # node.error = partial of loss with respect to output (u)
+            # node.partials = partials of loss with respect to each weight coming into node
+
+            if node.act == "relu":
+                if node.z >= 0:
+                    fprime = 1
+                else:
+                    fprime = 0
+            else:
+                raise NotImplemented
+
+            node.backward(error=error, fprime=fprime)
 
 class Net:
 
@@ -103,7 +144,15 @@ class Net:
         # Assumes single value output
         self.layers.append(FC_Layer(nnodes=1, input_dim=hidden_dim))
 
-    def train(self, X = [[1, 2], [2, 3]], y= [5, 13], n_epochs=1, batch_size=128, lr=.05):
+        # Above only adds weights_in
+        # Now add the weights_out
+        for i, layer in enumerate(self.layers[:-1]):
+
+            next_layer = self.layers[i + 1]
+            for j, node in enumerate(layer.nodes):
+                node.weights_out = [n.weights_in[j+1] for n in next_layer.nodes]
+
+    def train(self, X = [[1]], y= [2], n_epochs=1, batch_size=128, lr=.1):
 
         # For each epoch...
         for epoch in range(n_epochs):
@@ -130,37 +179,39 @@ class Net:
                 node = self.layers[-1].nodes[0]
                 y_hat = node.u
                 node.error = 2 * (y_hat - y[i])
+                if node.act == "relu":
+                    if node.z >= 0:
+                        fprime = 1
+                    else:
+                        fprime = 0
+                else:
+                    raise NotImplemented
+
+                node.partials = [node.error * fprime * i for i in node.inputs]
+
                 print(f"obs({i}):  prediction error = {node.error}")
 
                 # Backward propagation
-                for layer_i in range(len(self.layers), 0, -1):
+                for layer_i in range(len(self.layers)-1, 0, -1):
                     layer = self.layers[layer_i - 1]
 
-                    for node in layer.nodes:
-
-                        node.partials = []
-                        if node.z > 0:
-                            fprime_z = 1
-                        else:
-                            fprime_z = 0
-
-                        for weight in node.weights:
-                            node.partials.append(node.error * fprime_z * weight)
-
-                    # Move errors backward
-                    if layer_i > 1:
-                        pr_layer = self.layers[layer_i - 2]
-                        for j, pr_node in enumerate(pr_layer.nodes):
-                            pr_node.error = node.partials[i + 1]
+                    layer.backward(error=node.error)
 
                 # Now update weights
                 for layer in self.layers:
                     for node in layer.nodes:
                         w_partials = np.array(node.partials)
-                        w_old = np.array(node.weights)
+                        w_old = np.array(node.weights_in)
                         w_new = w_old - lr * w_partials
-                        node.weights = list(w_new)
+                        node.weights_in = list(w_new)
+
+                # Above only adds weights_in
+                # Now add the weights_out
+                for j, layer in enumerate(self.layers[:-1]):
+                    next_layer = self.layers[j + 1]
+                    for k, node in enumerate(layer.nodes):
+                        node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=2, n_hidden_layers=1, hidden_dim=2)
-model.train(n_epochs=5)
+model = Net(n_inputs=1, n_hidden_layers=1, hidden_dim=1)
+model.train(n_epochs=30)

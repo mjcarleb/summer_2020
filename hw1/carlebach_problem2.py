@@ -117,8 +117,7 @@ class Net:
 
             # Shuffle observations for each epoch
             n_obs = len(X)
-            #idx_shuffle = np.random.permutation(n_obs)
-            idx_shuffle = range(n_obs)
+            idx_shuffle = np.random.permutation(n_obs)
 
             # SGD:  for each row, sample or observation of data
             for i, idx in enumerate(idx_shuffle):
@@ -177,5 +176,5 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=2, hidden_dim=20)
-model.train(X = [[1, 1], [2, 2], [3, 3]], y= [4, 8, 12], n_epochs=500, lr=.005)
+model = Net(n_inputs=2, hidden_dim=2)
+model.train(X = [[1, 1], [2, 2], [3, 3]], y= [4.1, 8.2, 11.9], n_epochs=500, lr=.00175)

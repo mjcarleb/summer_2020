@@ -6,13 +6,11 @@ class Node:
     Basic building block of neural network
     Each node contains the following:
         - node_id:  unique id
-        - act:  specifies type of activation function (e.g, "relu")
         - inputs:  list of values passed in the forward direction
         - weights_in:  list of weights for each incoming connection (including bias)
         - z:  sum of (inputs * weights_in)
         - u:  act(z)
         - weights_out:  list of weights for each outgoing connection
-        - error:  partials of the loss with respect to output (e.g., u)
         - partials:  partials of the loss with respect to each weight_in (for each node in layer and weight_in)
     """
 
@@ -23,7 +21,6 @@ class Node:
 
         Node.class_id += 1
         self.node_id = Node.class_id
-        self.act = "relu"
         self.inputs = None
         self.weights_in = weights_in
 
@@ -35,6 +32,7 @@ class Node:
         self.weights_out = []
 
         # Calculate on backward propagation
+        self.fprime = None
         self.error = None           # partial L wrt u
         self.partials = None     # list for each incoming weight
 
@@ -42,30 +40,7 @@ class Node:
 
         self.inputs = inputs
         self.z = (np.array(inputs) * np.array(self.weights_in)).sum()
-
-        if self.act == "relu":
-
-            if self.z < 0:
-                self.u = 0
-            else:
-                self.u = self.z
-
-        else:
-            raise NotImplemented
-
-    def backward(self, error, fprime):
-
-        self.error = error * fprime * self.weights_out[0]
-
-        if self.act == "relu":
-            if self.z >= 0:
-                fprime = 1
-            else:
-                fprime = 0
-        else:
-            raise NotImplemented
-
-        self.partials = [self.error * fprime * i for i in self.inputs]
+        self.u = self.z if self.z > 0 else 0
 
 class FC_Layer:
 
@@ -101,25 +76,6 @@ class FC_Layer:
             # node.u = act(node.z)
             node.forward(inputs=inputs)
 
-    def backward(self, error):
-
-        # For each node in the layer...
-        for node in self.nodes:
-
-            # Calculate z and u for each node and store in node
-            # node.error = partial of loss with respect to output (u)
-            # node.partials = partials of loss with respect to each weight coming into node
-
-            if node.act == "relu":
-                if node.z >= 0:
-                    fprime = 1
-                else:
-                    fprime = 0
-            else:
-                raise NotImplemented
-
-            node.backward(error=error, fprime=fprime)
-
 class Net:
 
     """
@@ -130,7 +86,7 @@ class Net:
     There are n_hidden_layers in between that are fully connected with hidden_dim nodes each
     """
 
-    def __init__(self, n_inputs, n_hidden_layers, hidden_dim):
+    def __init__(self, n_inputs, hidden_dim, n_hidden_layers=1):
 
         # Start with first hidden layer
         self.layers = []
@@ -161,7 +117,8 @@ class Net:
 
             # Shuffle observations for each epoch
             n_obs = len(X)
-            idx_shuffle = np.random.permutation(n_obs)
+            #idx_shuffle = np.random.permutation(n_obs)
+            idx_shuffle = range(n_obs)
 
             # SGD:  for each row, sample or observation of data
             for i, idx in enumerate(idx_shuffle):
@@ -179,27 +136,30 @@ class Net:
                     inputs = [1] + [node.u for node in layer.nodes]
 
                 # Final result of forward propagation
-                # Special case single output
+                # Start with special case for single output
                 node = self.layers[-1].nodes[0]
                 y_hat = node.u
-                node.error = 2 * (y_hat - y[idx])
-                if node.act == "relu":
-                    if node.z >= 0:
-                        fprime = 1
-                    else:
-                        fprime = 0
-                else:
-                    raise NotImplemented
 
-                node.partials = [node.error * fprime * i for i in node.inputs]
+                # Calculate node.error for final node (special case)
+                error_2 = 2 * (y_hat - y[idx])
+                fprime_2 = 1 if node.z > 0 else 0
+                node.error = error_2
+                node.fprime = fprime_2
 
-                print(f"obs({i}):  prediction error = {node.error}")
+                # Show error of last node
+                print(f"obs({i}):  prediction error = {error_2}")
 
-                # Backward propagation
-                for layer_i in range(len(self.layers)-1, 0, -1):
-                    layer = self.layers[layer_i - 1]
+                # Now calculate errors on the hidden layer
+                # Assumes only single weight connect hidden layer to single output
+                layer = self.layers[-2]
+                for node in layer.nodes:
+                    node.error = error_2 * fprime_2 * node.weights_out[0]
+                    node.fprime = 1 if node.z > 0 else 0
 
-                    layer.backward(error=node.error)
+                # Now calculate all the partials
+                for layer in self.layers:
+                    for node in layer.nodes:
+                        node.partials = [node.error * node.fprime * inp for inp in node.inputs]
 
                 # Now update weights
                 for layer in self.layers:
@@ -217,5 +177,5 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=2, n_hidden_layers=2, hidden_dim=20)
-model.train(X = [[1, 1], [2, 2], [3, 3]], y= [1, 8, 18], n_epochs=100, lr=.1)
+model = Net(n_inputs=2, hidden_dim=20)
+model.train(X = [[1, 1], [2, 2], [3, 3]], y= [4, 8, 12], n_epochs=500, lr=.005)

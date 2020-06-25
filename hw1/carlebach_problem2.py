@@ -2,6 +2,18 @@ import numpy as np
 
 class Node:
 
+    """
+    Basic building block of neural network
+    Each node contains the following:
+        - node_id:  unique id
+        - act:  specifies type of activation function (e.g, "relu")
+        - weights:  list of values for each input (including bias)
+        - z:  sum of (weights * inputs)
+        - u:  act(z)
+        - error:  partial of the loss with respect to out
+        - partials:  partials of the los with respect to each weight
+    """
+
     # Class attribute to give id to each node created
     class_id = 0
 
@@ -9,9 +21,9 @@ class Node:
 
         Node.class_id += 1
         self.node_id = Node.class_id
+        self.act = "relu"
 
         self.weights = weights
-        self.act = "relu"
         self.z = None
         self.u = None
         self.error = None
@@ -33,6 +45,16 @@ class Node:
 
 class FC_Layer:
 
+    """
+    Layer is list of nodes
+    This is a fully connected layer so each node has weight from each node in preceding layer
+
+    Each layer contains the following:
+        - layer_id:  unique id
+        - nodes:  list of nnodes nodes (initialized with random weights) where each node as weight from bias
+                  and each node of prior input layer (e.g., fully connected)
+    """
+
     # Class attribute to give id to each layer created
     class_id = 0
 
@@ -43,6 +65,7 @@ class FC_Layer:
         self.nodes = []
         for i in range(nnodes):
             weights = np.random.random(input_dim + 1)
+            weights = np.zeros(input_dim + 1)
             self.nodes.append(Node(weights=weights))
 
     def forward(self, inputs):
@@ -50,19 +73,29 @@ class FC_Layer:
         # For each node in the layer...
         for node in self.nodes:
 
-            # Calculate z and u for each node
+            # Calculate z and u for each node and store in node
+            # node.z = sum(weights * inputs)
+            # node.u = act(node.z)
             node.forward(inputs=inputs)
 
 
 class Net:
 
+    """
+    A list of fully connected layers
+
+    The first layer has n_inputs
+    The last layer has 1 output (to keep this simple)
+    There are n_hidden_layers in between that are fully connected with hidden_dim nodes each
+    """
+
     def __init__(self, n_inputs, n_hidden_layers, hidden_dim):
 
-        # Start with first layer
+        # Start with first hidden layer
         self.layers = []
         self.layers.append(FC_Layer(nnodes=hidden_dim, input_dim=n_inputs))
 
-        # Add other hidden layers if specified
+        # Add other hidden layers (if there are any)
         for n in range(1, n_hidden_layers):
             self.layers.append(FC_Layer(nnodes=hidden_dim, input_dim=hidden_dim))
 
@@ -80,15 +113,16 @@ class Net:
             # SGD:  for each row, sample or observation of data
             for i, observation in enumerate(X):
 
-                # Let's start the forward process with input to first layer being and observation of X
+                # Add bias to inputs
                 inputs = [1] + observation
 
-                # Now let's for forward through each layer
+                # Forward propagation
                 for layer in self.layers:
 
                     layer.forward(inputs=inputs)
 
                     # The input to the next layer is the u_values from the current layer
+                    # Be sure to include the bias
                     inputs = [1] + [node.u for node in layer.nodes]
 
                 # Final result of forward propagation
@@ -98,7 +132,7 @@ class Net:
                 node.error = 2 * (y_hat - y[i])
                 print(f"obs({i}):  prediction error = {node.error}")
 
-                # Go backwards through the layers
+                # Backward propagation
                 for layer_i in range(len(self.layers), 0, -1):
                     layer = self.layers[layer_i - 1]
 
@@ -129,4 +163,4 @@ class Net:
 
 
 model = Net(n_inputs=2, n_hidden_layers=1, hidden_dim=2)
-model.train(n_epochs=100)
+model.train(n_epochs=5)

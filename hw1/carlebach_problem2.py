@@ -29,7 +29,7 @@ class Node:
         self.u = None              # single u to each outgoing node
 
         # Added after calculating all weights_in for network, just for convenience
-        self.weights_out = []
+        self.weights_out = None
 
         # Calculate on backward propagation
         self.fprime = None
@@ -39,7 +39,7 @@ class Node:
     def forward(self, inputs):
 
         self.inputs = inputs
-        self.z = (np.array(inputs) * np.array(self.weights_in)).sum()
+        self.z = (inputs * self.weights_in).sum()
         self.u = self.z if self.z > 0 else 0
 
 class FC_Layer:
@@ -123,7 +123,7 @@ class Net:
             for i, idx in enumerate(idx_shuffle):
 
                 # Add bias to inputs
-                inputs = [1] + X[idx]
+                inputs = np.array([1] + list(X[idx]))
 
                 # Forward propagation
                 for layer in self.layers:
@@ -132,7 +132,7 @@ class Net:
 
                     # The input to the next layer is the u_values from the current layer
                     # Be sure to include the bias
-                    inputs = [1] + [node.u for node in layer.nodes]
+                    inputs = np.array([1] + [node.u for node in layer.nodes])
 
                 # Final result of forward propagation
                 # Start with special case for single output
@@ -176,5 +176,15 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=2, hidden_dim=2)
-model.train(X = [[1, 1], [2, 2], [3, 3]], y= [4.1, 8.2, 11.9], n_epochs=500, lr=.00175)
+model = Net(n_inputs=2, hidden_dim=20)
+
+# Make data
+n = 10
+X1 = np.random.permutation(n)
+X2 = np.random.permutation(n)
+X = np.zeros([n, 2])
+for i in range(n):
+    X[i,0] = X1[i]
+    X[i,1] = X2[i]
+y = np.array(X1) + np.array(X2) + np.random.random()*1
+model.train(X = X, y=y , n_epochs=10, lr=.001)

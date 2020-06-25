@@ -186,5 +186,5 @@ X = np.zeros([n, 2])
 for i in range(n):
     X[i,0] = X1[i]
     X[i,1] = X2[i]
-y = np.array(X1) + np.array(X2) + np.random.random()*1
-model.train(X = X, y=y , n_epochs=10, lr=.001)
+y = np.array(X1) * np.array(X2) + np.random.random()*5
+model.train(X = X, y=y , n_epochs=100, lr=.0002)

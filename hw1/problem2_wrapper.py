@@ -39,7 +39,6 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=.2, random_sta
 model = Net(n_inputs=2, hidden_dim=2)
 
 # Fit the model
-# Add history
 # Move back to notebook with plotting
 history = model.fit(X_train=X_train, y_train=y_train,
                     X_val=X_val, y_val=y_val,

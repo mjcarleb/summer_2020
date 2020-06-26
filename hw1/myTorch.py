@@ -66,6 +66,14 @@ class Node:
         self.z = (inputs * weights_in).sum()
         self.u = self.z if self.z > 0 else 0
 
+    def backward(self, error, fprime):
+
+        # Partial wrt to output for this node
+        # Implementation limited to 1 hidden layer with output layer being single node
+        self.error = error * fprime * self.weights_out[0]
+        self.fprime = 1 if self.z > 0 else 0
+
+
 class FC_Layer:
 
     """
@@ -102,6 +110,15 @@ class FC_Layer:
             # node.z = sum(weights * inputs)
             # node.u = act(node.z)
             node.forward(inputs=inputs, eval_mode=eval_mode)
+
+    def backward(self, error, fprime):
+
+        # For each node in the layer...
+        for node in self.nodes:
+
+            # Calculate derivative of activation and the partial wrt loss
+            # Store in node.error and node.fprime
+            node.backward(error=error, fprime=fprime)
 
 
 def mini_batch_indices(X, batch_size):
@@ -275,19 +292,16 @@ class SequentialModel:
                     train_mse += (y_hat - y_mb[i_obs]) ** 2
 
                     # Calculate node.error for final node (special case)
-                    error_2 = 2 * (y_hat - y_mb[i_obs])
-                    fprime_2 = 1 if node.z > 0 else 0
-                    node.error = error_2
-                    node.fprime = fprime_2
+                    error = 2 * (y_hat - y_mb[i_obs])
+                    fprime = 1 if node.z > 0 else 0
+                    node.error = error
+                    node.fprime = fprime
 
-                    # Now calculate errors on the hidden layer
-                    # Assumes only single weight connect hidden layer to single output
-                    layer = self.layers[-2]
-                    for node in layer.nodes:
-                        node.error = error_2 * fprime_2 * node.weights_out[0]
-                        node.fprime = 1 if node.z > 0 else 0
+                    # Back propagate the error
+                    for layer in self.layers[-2:-1]:
+                        layer.backward(error=error, fprime=fprime)
 
-                    # For each node in each layer...
+                    # Now that errors are back propagated, calculate the partials for each node in each layer...
                     for layer in self.layers:
                         for node in layer.nodes:
 
@@ -295,7 +309,7 @@ class SequentialModel:
                             partials = [node.error * node.fprime * inp for inp in node.inputs]
 
                             # Add latest partials to partials for other observations in the mini batch
-                            # We will average latger
+                            # We will average later
                             sum_partials = []
                             for i_partial, partial in enumerate(partials):
                                 if node.partials is None:

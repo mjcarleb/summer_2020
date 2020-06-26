@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # See myTorch.py for my basic implementation of neural net
-from myTorch import Node, FC_Layer, Net
+from hw1.myTorch import Net
 
 # Read data, clean in data, extract features and response variable
 df = pd.read_csv("Housing_Data.csv")

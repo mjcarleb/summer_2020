@@ -169,7 +169,7 @@ class Net:
         # Return average mse
         return predict_mse / len(y)
 
-    def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128):
+    def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128, verbose=True):
 
         # Initialize history to store results per epoch
         history = dict()
@@ -266,11 +266,13 @@ class Net:
             # Report at end of epoch
             n_batches = len(mb_indices)
             train_mse = train_mse / (batch_size * n_batches)
-            train_rmse =  train_mse ** .5
-
             val_mse = self.predict(X=X_val, y=y_val)
-            val_rmse = val_mse ** .5
-            print(f"Epoch {epoch}:  training rmse={train_rmse :3.2f}   -   validation rmse={val_rmse :3.2f}")
+
+            # Optional show RMSE
+            if verbose:
+                train_rmse =  train_mse ** .5
+                val_rmse = val_mse ** .5
+                print(f"Epoch {epoch}:  training rmse={train_rmse :3.2f}   -   validation rmse={val_rmse :3.2f}")
 
             # Update  history with losses
             history["loss"].append(train_mse)

@@ -33,13 +33,15 @@ X = scaler.transform(X)
 y = price / 1000
 
 # Create train and test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_state=89)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=.2, random_state=89)
 
 # Create NN model using myTorch implementation
 model = Net(n_inputs=2, hidden_dim=2)
 
 # Fit the model
-# Add validation data
+# Finish validation / predict
 # Add history
 # Move back to notebook with plotting
-model.fit(X_train=X_train, y_train=y_train, n_epochs=100, lr=.0002, batch_size=128)
+model.fit(X_train=X_train, y_train=y_train,
+          X_val=X_val, y_val=y_val,
+          n_epochs=100, lr=.0002, batch_size=128)

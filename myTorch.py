@@ -36,9 +36,11 @@ class Node:
         self.error = None           # partial L wrt u
         self.partials = None        # list for each incoming weight
 
-    def forward(self, inputs):
+    def forward(self, inputs, eval_mode=False):
 
-        self.inputs = inputs
+        if not eval_mode:
+            self.inputs = inputs
+
         self.z = (inputs * self.weights_in).sum()
         self.u = self.z if self.z > 0 else 0
 
@@ -66,7 +68,7 @@ class FC_Layer:
             weights_in = np.random.random(input_dim + 1)
             self.nodes.append(Node(weights_in=weights_in))
 
-    def forward(self, inputs):
+    def forward(self, inputs, eval_mode=False):
 
         # For each node in the layer...
         for node in self.nodes:
@@ -74,7 +76,7 @@ class FC_Layer:
             # Calculate z and u for each node and store in node
             # node.z = sum(weights * inputs)
             # node.u = act(node.z)
-            node.forward(inputs=inputs)
+            node.forward(inputs=inputs, eval_mode=eval_mode)
 
 
 def mini_batch_indices(X, batch_size):
@@ -123,13 +125,44 @@ class Net:
             for j, node in enumerate(layer.nodes):
                 node.weights_out = [n.weights_in[j+1] for n in next_layer.nodes]
 
-    def fit(self, X_train, y_train, n_epochs, lr, batch_size=128):
+    def predict(self, X, y):
+
+        # Reset to 0
+        predict_mse = 0
+
+        # For each observation...
+        for i_obs, observation in enumerate(X):
+
+            # Add bias to input
+            X_plus = np.array([1] + list(observation))
+
+            # Forward propagation
+            for layer in self.layers:
+
+                # Do not save inputs in each node while evaluating
+                layer.forward(inputs=X_plus, eval_mode=True)
+
+                # The input to the next layer is the u_values from the current layer
+                # Be sure to include the bias
+                inputs = np.array([1] + [node.u for node in layer.nodes])
+
+            # Final result of forward propagation
+            # Start with special case for single output
+            node = self.layers[-1].nodes[0]
+            y_hat = node.u
+
+            predict_mse += (y_hat - y[i_obs]) ** 2
+
+        # Return average mse
+        return predict_mse / len(y)
+
+    def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128):
 
         # For each epoch...
         for epoch in range(n_epochs):
 
             # Reset for each epoch
-            epoch_mse = 0
+            train_mse = 0
 
             # Permute and split into mini batches
             mb_indices = mini_batch_indices(X=X_train, batch_size=batch_size)
@@ -161,8 +194,8 @@ class Net:
                     node = self.layers[-1].nodes[0]
                     y_hat = node.u
 
-                    # For reporting, sum up epoch_mse
-                    epoch_mse += (y_hat - y_mb[i_obs]) ** 2
+                    # For reporting, sum up train_mse for epoch
+                    train_mse += (y_hat - y_mb[i_obs]) ** 2
 
                     # Calculate node.error for final node (special case)
                     error_2 = 2 * (y_hat - y_mb[i_obs])
@@ -213,8 +246,12 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
             # Report at end of epoch
+            #predict_mse = self.predict(X=X_val, y=y_val)
             n_batches = len(mb_indices)
-            print(f"Epoch {epoch}:  training rmse={(epoch_mse / (batch_size * n_batches)) ** .5 :3.2f}")
+            print(f"Epoch {epoch}:  training rmse={(train_mse / (batch_size * n_batches)) ** .5 :3.2f}")
+
+            #print(f"Epoch {epoch}:  training rmse={train_mse :3.2f}, validation rmse={predict_mse :3.2f}")
+            #print(f"Epoch {epoch}:  training rmse={train_mse :3.2f}")
 
 if __name__ == "__main__":
 

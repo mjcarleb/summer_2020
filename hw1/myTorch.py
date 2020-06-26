@@ -178,7 +178,7 @@ class Net:
 
         # Return description
 
-        desc = f"Model Summary:\n"
+        desc = f"myTorch Model Summary:\n"
         desc += f">>fully connected\n"
         desc += f"  input_dim={input_dim} :: hidden_layers={hidden_layers} :: hidden_dim={hidden_dim} :: output_dim=1"
         return desc

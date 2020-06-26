@@ -1,3 +1,16 @@
+"""
+CSIC E-S89, Introduction to Deep Learning
+
+Mark Carlebach
+June 26, 2020
+
+My implementation of a neural network is loosely inspired by Joel Grus youtube (where he does much better job!):
+https://www.youtube.com/watch?v=o64FV-ez6Gw
+
+I also used this post to get clear about taking average of gradients to perform mini-batch gradient descent:
+https://stats.stackexchange.com/questions/183840/sum-or-average-of-gradients-in-mini-batch-gradient-decent
+"""
+
 import numpy as np
 
 class Node:

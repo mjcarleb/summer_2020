@@ -16,7 +16,8 @@ import numpy as np
 class Node:
 
     """
-    Basic building block of neural network
+    Basic computational building block of neural network
+
     Each node contains the following:
         - node_id:  unique id
         - inputs:  list of values passed in the forward direction
@@ -24,7 +25,13 @@ class Node:
         - z:  sum of (inputs * weights_in)
         - u:  act(z)
         - weights_out:  list of weights for each outgoing connection
-        - partials:  partials of the loss with respect to each weight_in (for each node in layer and weight_in)
+        - fprime: for relu, 1 if z > 0 else 0
+        - error:  partial L wrt u
+        - partials:  partials L wrt each weight_in
+
+    Methods:
+        - forward():  calculates z & u based on inputs and weights
+        - NOTE:  I implement backward in the SequentialModel.train() method
     """
 
     # Class attribute to give id to each node created
@@ -62,13 +69,16 @@ class Node:
 class FC_Layer:
 
     """
-    Layer is list of nodes
-    This is a fully connected layer so each node has weight from each node in preceding layer
+    Layer is list of nodes.  This is a fully connected layer so each node has weight from each node in preceding layer.
 
     Each layer contains the following:
         - layer_id:  unique id
         - nodes:  list of nnodes nodes (initialized with random weights) where each node as weight from bias
                   and each node of prior input layer (e.g., fully connected)
+
+    Methods:
+        - forward():  calculates z & u for all nodes in layer, based on inputs and weights
+        - NOTE:  I implement backward in the SequentialModel.train() method
     """
 
     # Class attribute to give id to each layer created
@@ -95,6 +105,16 @@ class FC_Layer:
 
 
 def mini_batch_indices(X, batch_size):
+
+    """
+    Produces a a list of indices, 1 per mini batch
+    :param X:  The data to be split into mini-batches
+    :param batch_size: The size of each mini batch
+    :return: A list of indices, 1 per mini batch
+
+    NOTE:  The data is shuffled before splitting, but the final observations < batch_size are not included in indices
+    """
+
     # Permute index to train data
     idx = np.random.permutation(X.shape[0])
 
@@ -112,21 +132,16 @@ class SequentialModel:
 
     """
     A list of fully connected layers
-
-    The first layer has n_inputs
-    The last layer has 1 output (to keep this simple)
-    There are n_hidden_layers in between that are fully connected with hidden_dim nodes each
+        - The first layer has n_inputs nodes
+        - There is only 1 single hidden layer (limitation of this implementation) with hidden_dim nodes
+        - The last layer has 1 output node (limitation of this implementation)
     """
 
-    def __init__(self, n_inputs, hidden_dim, n_hidden_layers=1):
+    def __init__(self, n_inputs, hidden_dim):
 
         # Start with first hidden layer
         self.layers = []
         self.layers.append(FC_Layer(nnodes=hidden_dim, input_dim=n_inputs))
-
-        # Add other hidden layers (if there are any)
-        for n in range(1, n_hidden_layers):
-            self.layers.append(FC_Layer(nnodes=hidden_dim, input_dim=hidden_dim))
 
         # End with output layer
         # Assumes single value output
@@ -142,8 +157,16 @@ class SequentialModel:
 
     def predict(self, X, y):
 
+        """
+        Uses networks current weights to make predictions and calculate prediction mse
+        :param X: The value from which to predict
+        :param y: The true values of y
+        :return: the predictions and prediction mse
+        """
+
         # Reset to 0
         predict_mse = 0
+        predictions = []
 
         # For each observation...
         for i_obs, observation in enumerate(X):
@@ -167,12 +190,18 @@ class SequentialModel:
             y_hat = node.u
 
             predict_mse += (y_hat - y[i_obs]) ** 2
+            predictions.append(y_hat)
 
         # Return average mse
-        return predict_mse / len(y)
+        return predictions, predict_mse / len(y)
 
     def summary(self):
 
+        """
+        Return simple string describing the network
+
+        :return: description
+        """
         # Collect data for description
         input_dim = self.layers[0].nodes[0].weights_in.shape[0] - 1
         hidden_layers = len(self.layers) - 1
@@ -187,6 +216,20 @@ class SequentialModel:
 
     def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128, verbose=True):
 
+        """
+        Train the network on train data, and provide training and validation loss per epoch.  Use
+        mini batch gradient descent.
+
+        :param X_train: training dependent variables
+        :param y_train: training response variable
+        :param X_val: validation dependent variables
+        :param y_val: validation response variable
+        :param n_epochs: number of epochs
+        :param lr: learning rate
+        :param batch_size: mini batch batch size
+        :param verbose: print losses after epoch (or not)
+        :return: history (dictionary with training loss and validation loss
+        """
         # Initialize history to store results per epoch
         history = dict()
         history["loss"] = []
@@ -282,7 +325,7 @@ class SequentialModel:
             # Report at end of epoch
             n_batches = len(mb_indices)
             train_mse = train_mse / (batch_size * n_batches)
-            val_mse = self.predict(X=X_val, y=y_val)
+            _, val_mse = self.predict(X=X_val, y=y_val)
 
             # Optional show RMSE
             if verbose:
@@ -295,18 +338,3 @@ class SequentialModel:
             history["val_loss"].append(val_mse)
 
         return history
-
-if __name__ == "__main__":
-
-    model = Net(n_inputs=2, hidden_dim=20)
-
-    # Make data
-    n = 10
-    X1 = np.random.permutation(n)
-    X2 = np.random.permutation(n)
-    X = np.zeros([n, 2])
-    for i in range(n):
-        X[i,0] = X1[i]
-        X[i,1] = X2[i]
-    y = np.array(X1) * np.array(X2) + np.random.random()*5
-    model.train(X = X, y=y , n_epochs=100, lr=.0002)

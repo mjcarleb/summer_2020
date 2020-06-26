@@ -76,6 +76,21 @@ class FC_Layer:
             # node.u = act(node.z)
             node.forward(inputs=inputs)
 
+
+def mini_batch_indices(X, batch_size):
+    # Permute index to train data
+    idx = np.random.permutation(X.shape[0])
+
+    # Split data into mini batches
+    n_batches = X.shape[0] // batch_size
+
+    indices = []
+    for n_batch in range(n_batches):
+        indices.append(idx[n_batch * batch_size:(n_batch + 1) * batch_size])
+
+    return indices
+
+
 class Net:
 
     """
@@ -108,72 +123,80 @@ class Net:
             for j, node in enumerate(layer.nodes):
                 node.weights_out = [n.weights_in[j+1] for n in next_layer.nodes]
 
-    def train(self, X, y, n_epochs, lr, batch_size=128):
+    def fit(self, X_train, y_train, n_epochs, lr, batch_size=128):
 
         # For each epoch...
         for epoch in range(n_epochs):
             print()
             print(f"######## Epoch:  {epoch}")
 
-            # Shuffle observations for each epoch
-            n_obs = len(X)
-            idx_shuffle = np.random.permutation(n_obs)
+            train_mse = 0
 
-            # SGD:  for each row, sample or observation of data
-            for i, idx in enumerate(idx_shuffle):
+            # Permute and split into mini batches
+            mb_indices = mini_batch_indices(X=X_train, batch_size=batch_size)
 
-                # Add bias to inputs
-                inputs = np.array([1] + list(X[idx]))
+            # Process data for each mini batch
+            for mb_index in mb_indices:
 
-                # Forward propagation
-                for layer in self.layers:
+                # X and y are a mini batch
+                X_mb = X_train[mb_index]
+                y_mb = y_train[mb_index]
 
-                    layer.forward(inputs=inputs)
+                for i_obs, observation in enumerate(X_mb):
 
-                    # The input to the next layer is the u_values from the current layer
-                    # Be sure to include the bias
-                    inputs = np.array([1] + [node.u for node in layer.nodes])
+                    # Add bias to input
+                    X_plus = np.array([1] + list(observation))
 
-                # Final result of forward propagation
-                # Start with special case for single output
-                node = self.layers[-1].nodes[0]
-                y_hat = node.u
+                    # Forward propagation
+                    for layer in self.layers:
 
-                # Calculate node.error for final node (special case)
-                error_2 = 2 * (y_hat - y[idx])
-                fprime_2 = 1 if node.z > 0 else 0
-                node.error = error_2
-                node.fprime = fprime_2
+                        layer.forward(inputs=X_plus)
 
-                # Show error of last node
-                print(f"obs({i}):  prediction error = {error_2}")
+                        # The input to the next layer is the u_values from the current layer
+                        # Be sure to include the bias
+                        inputs = np.array([1] + [node.u for node in layer.nodes])
 
-                # Now calculate errors on the hidden layer
-                # Assumes only single weight connect hidden layer to single output
-                layer = self.layers[-2]
-                for node in layer.nodes:
-                    node.error = error_2 * fprime_2 * node.weights_out[0]
-                    node.fprime = 1 if node.z > 0 else 0
+                    # Final result of forward propagation
+                    # Start with special case for single output
+                    node = self.layers[-1].nodes[0]
+                    y_hat = node.u
 
-                # Now calculate all the partials
-                for layer in self.layers:
+                    # Calculate node.error for final node (special case)
+                    error_2 = 2 * (y_hat - y_mb[i_obs])
+                    fprime_2 = 1 if node.z > 0 else 0
+                    node.error = error_2
+                    node.fprime = fprime_2
+
+                    # Show error of last node
+                    print(f"obs({i_obs}):  prediction error = {error_2}")
+
+                    # Now calculate errors on the hidden layer
+                    # Assumes only single weight connect hidden layer to single output
+                    layer = self.layers[-2]
                     for node in layer.nodes:
-                        node.partials = [node.error * node.fprime * inp for inp in node.inputs]
+                        node.error = error_2 * fprime_2 * node.weights_out[0]
+                        node.fprime = 1 if node.z > 0 else 0
 
-                # Now update weights
-                for layer in self.layers:
-                    for node in layer.nodes:
-                        w_partials = np.array(node.partials)
-                        w_old = np.array(node.weights_in)
-                        w_new = w_old - lr * w_partials
-                        node.weights_in = list(w_new)
+                    # Now calculate all the partials
+                    for layer in self.layers:
+                        for node in layer.nodes:
+                            node.partials = [node.error * node.fprime * inp for inp in node.inputs]
 
-                # Above only adds weights_in
-                # Now add the weights_out
-                for j, layer in enumerate(self.layers[:-1]):
-                    next_layer = self.layers[j + 1]
-                    for k, node in enumerate(layer.nodes):
-                        node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
+                    # Now update weights
+                    for layer in self.layers:
+                        for node in layer.nodes:
+                            w_partials = np.array(node.partials)
+                            w_old = np.array(node.weights_in)
+                            w_new = w_old - lr * w_partials
+                            node.weights_in = list(w_new)
+
+                    # Above only adds weights_in
+                    # Now add the weights_out
+                    for j, layer in enumerate(self.layers[:-1]):
+                        next_layer = self.layers[j + 1]
+                        for k, node in enumerate(layer.nodes):
+                            node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
+
 
 
 if __name__ == "__main__":

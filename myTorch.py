@@ -158,6 +158,11 @@ class Net:
 
     def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128):
 
+        # Initialize history to store results per epoch
+        history = dict()
+        history["loss"] = []
+        history["val_loss"] = []
+
         # For each epoch...
         for epoch in range(n_epochs):
 
@@ -246,12 +251,19 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
             # Report at end of epoch
-            #predict_mse = self.predict(X=X_val, y=y_val)
             n_batches = len(mb_indices)
-            print(f"Epoch {epoch}:  training rmse={(train_mse / (batch_size * n_batches)) ** .5 :3.2f}")
+            train_mse = train_mse / (batch_size * n_batches)
+            train_rmse =  train_mse ** .5
 
-            #print(f"Epoch {epoch}:  training rmse={train_mse :3.2f}, validation rmse={predict_mse :3.2f}")
-            #print(f"Epoch {epoch}:  training rmse={train_mse :3.2f}")
+            val_mse = self.predict(X=X_val, y=y_val)
+            val_rmse = val_mse ** .5
+            print(f"Epoch {epoch}:  training rmse={train_rmse :3.2f}   -   validation rmse={val_rmse :3.2f}")
+
+            # Update  history with losses
+            history["loss"].append(train_mse)
+            history["val_loss"].append(val_mse)
+
+        return history
 
 if __name__ == "__main__":
 

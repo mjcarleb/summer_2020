@@ -39,9 +39,20 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=.2, random_sta
 model = Net(n_inputs=2, hidden_dim=2)
 
 # Fit the model
-# Finish validation / predict
 # Add history
 # Move back to notebook with plotting
-model.fit(X_train=X_train, y_train=y_train,
-          X_val=X_val, y_val=y_val,
-          n_epochs=100, lr=.0002, batch_size=128)
+history = model.fit(X_train=X_train, y_train=y_train,
+                    X_val=X_val, y_val=y_val,
+                    n_epochs=100, lr=.0002, batch_size=128)
+
+
+# Plot results
+fig, ax = plt.subplots(1, 1, figsize=(10,8))
+ax.set_title("Training and Validation Loss per Epoch", fontsize=18)
+ax.set_xlabel("epoch", fontsize=14)
+ax.set_ylabel("mse", fontsize=14)
+ax.plot(history["loss"], label = "train loss")
+ax.plot(history["val_loss"], label = "val loss")
+ax.legend(fontsize=14)
+ax.grid(True)
+plt.show()

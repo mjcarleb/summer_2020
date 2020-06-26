@@ -34,7 +34,7 @@ class Node:
         # Calculate on backward propagation
         self.fprime = None
         self.error = None           # partial L wrt u
-        self.partials = None     # list for each incoming weight
+        self.partials = None        # list for each incoming weight
 
     def forward(self, inputs):
 
@@ -130,18 +130,20 @@ class Net:
             print()
             print(f"######## Epoch:  {epoch}")
 
-            train_mse = 0
-
             # Permute and split into mini batches
             mb_indices = mini_batch_indices(X=X_train, batch_size=batch_size)
 
-            # Process data for each mini batch
-            for mb_index in mb_indices:
+            # For each mini batch...
+            for i_mb, mb_index in enumerate(mb_indices):
+
+                # Reset for mini batch
+                mb_mse = 0
 
                 # X and y are a mini batch
                 X_mb = X_train[mb_index]
                 y_mb = y_train[mb_index]
 
+                # For each observation of the mini batch...
                 for i_obs, observation in enumerate(X_mb):
 
                     # Add bias to input
@@ -161,14 +163,14 @@ class Net:
                     node = self.layers[-1].nodes[0]
                     y_hat = node.u
 
+                    # For reporting, sum up mb_mse
+                    mb_mse += (y_hat - y_mb[i_obs]) ** 2
+
                     # Calculate node.error for final node (special case)
                     error_2 = 2 * (y_hat - y_mb[i_obs])
                     fprime_2 = 1 if node.z > 0 else 0
                     node.error = error_2
                     node.fprime = fprime_2
-
-                    # Show error of last node
-                    print(f"obs({i_obs}):  prediction error = {error_2}")
 
                     # Now calculate errors on the hidden layer
                     # Assumes only single weight connect hidden layer to single output
@@ -177,25 +179,44 @@ class Net:
                         node.error = error_2 * fprime_2 * node.weights_out[0]
                         node.fprime = 1 if node.z > 0 else 0
 
-                    # Now calculate all the partials
+                    # For each node in each layer...
                     for layer in self.layers:
                         for node in layer.nodes:
-                            node.partials = [node.error * node.fprime * inp for inp in node.inputs]
 
-                    # Now update weights
-                    for layer in self.layers:
-                        for node in layer.nodes:
-                            w_partials = np.array(node.partials)
-                            w_old = np.array(node.weights_in)
-                            w_new = w_old - lr * w_partials
-                            node.weights_in = list(w_new)
+                            # Partials for latest observation
+                            partials = [node.error * node.fprime * inp for inp in node.inputs]
 
-                    # Above only adds weights_in
-                    # Now add the weights_out
-                    for j, layer in enumerate(self.layers[:-1]):
-                        next_layer = self.layers[j + 1]
-                        for k, node in enumerate(layer.nodes):
-                            node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
+                            # Add latest partials to partials for other observations in the mini batch
+                            # We will average latger
+                            sum_partials = []
+                            for i_partial, partial in enumerate(partials):
+                                if node.partials is None:
+                                    sum_partials = partials
+                                else:
+                                    sum_partials.append(partials[i_partial] + node.partials[i_partial])
+                            node.partials = sum_partials
+
+                # Report results of mini-batch
+                print(f"Epoch {epoch} mini-batch {i_mb}:  training rmse={(mb_mse/batch_size) ** .5}")
+
+                # Now update weights at end of mini-batch
+                # Divide sum of gradients by batch_size to get average gradient
+                # Be sure to reset node.partials to None prior to next mini-batch
+                for layer in self.layers:
+                    for node in layer.nodes:
+                        w_partials = np.array(node.partials) / batch_size
+                        w_old = np.array(node.weights_in)
+                        w_new = w_old - lr * w_partials
+                        node.weights_in = list(w_new)
+                        node.partials = None
+
+                # Above only adds weights_in
+                # Now add the weights_out
+                for j, layer in enumerate(self.layers[:-1]):
+                    next_layer = self.layers[j + 1]
+                    for k, node in enumerate(layer.nodes):
+                        node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
+
 
 
 

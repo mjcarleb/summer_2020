@@ -39,7 +39,6 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_s
 model = Net(n_inputs=2, hidden_dim=2)
 
 # Fit the model
-# Get MB GD to work
 # Add validation data
 # Add history
 # Move back to notebook with plotting

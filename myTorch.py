@@ -127,17 +127,15 @@ class Net:
 
         # For each epoch...
         for epoch in range(n_epochs):
-            print()
-            print(f"######## Epoch:  {epoch}")
+
+            # Reset for each epoch
+            epoch_mse = 0
 
             # Permute and split into mini batches
             mb_indices = mini_batch_indices(X=X_train, batch_size=batch_size)
 
             # For each mini batch...
             for i_mb, mb_index in enumerate(mb_indices):
-
-                # Reset for mini batch
-                mb_mse = 0
 
                 # X and y are a mini batch
                 X_mb = X_train[mb_index]
@@ -163,8 +161,8 @@ class Net:
                     node = self.layers[-1].nodes[0]
                     y_hat = node.u
 
-                    # For reporting, sum up mb_mse
-                    mb_mse += (y_hat - y_mb[i_obs]) ** 2
+                    # For reporting, sum up epoch_mse
+                    epoch_mse += (y_hat - y_mb[i_obs]) ** 2
 
                     # Calculate node.error for final node (special case)
                     error_2 = 2 * (y_hat - y_mb[i_obs])
@@ -196,9 +194,6 @@ class Net:
                                     sum_partials.append(partials[i_partial] + node.partials[i_partial])
                             node.partials = sum_partials
 
-                # Report results of mini-batch
-                print(f"Epoch {epoch} mini-batch {i_mb}:  training rmse={(mb_mse/batch_size) ** .5}")
-
                 # Now update weights at end of mini-batch
                 # Divide sum of gradients by batch_size to get average gradient
                 # Be sure to reset node.partials to None prior to next mini-batch
@@ -217,8 +212,9 @@ class Net:
                     for k, node in enumerate(layer.nodes):
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
-
-
+            # Report at end of epoch
+            n_batches = len(mb_indices)
+            print(f"Epoch {epoch}:  training rmse={(epoch_mse / (batch_size * n_batches)) ** .5 :3.2f}")
 
 if __name__ == "__main__":
 

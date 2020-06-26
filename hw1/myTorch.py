@@ -31,7 +31,7 @@ class Node:
 
     Methods:
         - forward():  calculates z & u based on inputs and weights
-        - NOTE:  I implement backward in the SequentialModel.train() method
+        - backward():  calculates fprime for node and error for node with fprime and error from node to right
     """
 
     # Class attribute to give id to each node created
@@ -86,7 +86,7 @@ class FC_Layer:
 
     Methods:
         - forward():  calculates z & u for all nodes in layer, based on inputs and weights
-        - NOTE:  I implement backward in the SequentialModel.train() method
+        - backward():  calculates fprime and error for all nodes in layer
     """
 
     # Class attribute to give id to each layer created

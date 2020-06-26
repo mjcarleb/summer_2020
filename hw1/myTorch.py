@@ -108,7 +108,7 @@ class Net:
             for j, node in enumerate(layer.nodes):
                 node.weights_out = [n.weights_in[j+1] for n in next_layer.nodes]
 
-    def train(self, X, y, n_epochs, lr):
+    def train(self, X, y, n_epochs, lr, batch_size=128):
 
         # For each epoch...
         for epoch in range(n_epochs):

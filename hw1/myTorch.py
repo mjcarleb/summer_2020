@@ -169,6 +169,20 @@ class Net:
         # Return average mse
         return predict_mse / len(y)
 
+    def summary(self):
+
+        # Collect data for description
+        input_dim = len(self.layers[0].nodes)
+        hidden_layers = len(self.layers) - 1
+        hidden_dim = len(self.layers[0].nodes)
+
+        # Return description
+
+        desc = f"Model Summary:\n"
+        desc += f">>fully connected\n"
+        desc += f"  input_dim={input_dim} :: hidden_layers={hidden_layers} :: hidden_dim={hidden_dim} :: output_dim=1"
+        return desc
+
     def fit(self, X_train, y_train, X_val, y_val, n_epochs, lr, batch_size=128, verbose=True):
 
         # Initialize history to store results per epoch

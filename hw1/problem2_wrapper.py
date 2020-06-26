@@ -37,6 +37,7 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=.2, random_sta
 
 # Create NN model using myTorch implementation
 model = Net(n_inputs=2, hidden_dim=2)
+print(model.summary())
 
 # Fit the model
 # Move back to notebook with plotting

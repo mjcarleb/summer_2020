@@ -176,15 +176,17 @@ class Net:
                         node.weights_out = [n.weights_in[k+1] for n in next_layer.nodes]
 
 
-model = Net(n_inputs=2, hidden_dim=20)
+if __name__ == "__main__":
 
-# Make data
-n = 10
-X1 = np.random.permutation(n)
-X2 = np.random.permutation(n)
-X = np.zeros([n, 2])
-for i in range(n):
-    X[i,0] = X1[i]
-    X[i,1] = X2[i]
-y = np.array(X1) * np.array(X2) + np.random.random()*5
-model.train(X = X, y=y , n_epochs=100, lr=.0002)
+    model = Net(n_inputs=2, hidden_dim=20)
+
+    # Make data
+    n = 10
+    X1 = np.random.permutation(n)
+    X2 = np.random.permutation(n)
+    X = np.zeros([n, 2])
+    for i in range(n):
+        X[i,0] = X1[i]
+        X[i,1] = X2[i]
+    y = np.array(X1) * np.array(X2) + np.random.random()*5
+    model.train(X = X, y=y , n_epochs=100, lr=.0002)

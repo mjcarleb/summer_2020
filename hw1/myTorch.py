@@ -51,10 +51,12 @@ class Node:
 
     def forward(self, inputs, eval_mode=False):
 
+        weights_in = np.array(self.weights_in)
+
         if not eval_mode:
             self.inputs = inputs
 
-        self.z = (inputs * self.weights_in).sum()
+        self.z = (inputs * weights_in).sum()
         self.u = self.z if self.z > 0 else 0
 
 class FC_Layer:
@@ -106,7 +108,7 @@ def mini_batch_indices(X, batch_size):
     return indices
 
 
-class Net:
+class SequentialModel:
 
     """
     A list of fully connected layers
@@ -157,7 +159,7 @@ class Net:
 
                 # The input to the next layer is the u_values from the current layer
                 # Be sure to include the bias
-                inputs = np.array([1] + [node.u for node in layer.nodes])
+                X_plus = np.array([1] + [node.u for node in layer.nodes])
 
             # Final result of forward propagation
             # Start with special case for single output
@@ -172,7 +174,7 @@ class Net:
     def summary(self):
 
         # Collect data for description
-        input_dim = len(self.layers[0].nodes)
+        input_dim = self.layers[0].nodes[0].weights_in.shape[0] - 1
         hidden_layers = len(self.layers) - 1
         hidden_dim = len(self.layers[0].nodes)
 
@@ -219,7 +221,7 @@ class Net:
 
                         # The input to the next layer is the u_values from the current layer
                         # Be sure to include the bias
-                        inputs = np.array([1] + [node.u for node in layer.nodes])
+                        X_plus = np.array([1] + [node.u for node in layer.nodes])
 
                     # Final result of forward propagation
                     # Start with special case for single output

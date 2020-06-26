@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # See myTorch.py for my basic implementation of neural net
-from hw1.myTorch import Net
+from hw1.myTorch import SequentialModel
 
 # Read data, clean in data, extract features and response variable
 df = pd.read_csv("Housing_Data.csv")
@@ -36,15 +36,14 @@ y = price / 1000
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=.2, random_state=89)
 
 # Create NN model using myTorch implementation
-model = Net(n_inputs=2, hidden_dim=2)
+model = SequentialModel(n_inputs=2, hidden_dim=5)
 print(model.summary())
 
 # Fit the model
-# Move back to notebook with plotting
 history = model.fit(X_train=X_train, y_train=y_train,
                     X_val=X_val, y_val=y_val,
-                    n_epochs=100, lr=.0002, batch_size=128)
-
+                    n_epochs=100, lr=.0002,
+                    batch_size=128, verbose=True)
 
 # Plot results
 fig, ax = plt.subplots(1, 1, figsize=(10,8))

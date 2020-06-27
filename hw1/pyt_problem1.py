@@ -10,6 +10,9 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+# Use seed consistently to random processes
+my_random_state = 17
+
 # Read data, clean in data, extract features and response variable
 df = pd.read_csv("Housing_Data.csv")
 badrows = df.index[df['floorArea'] == "sqft"].tolist()
@@ -47,24 +50,19 @@ ax.grid(True)
 #plt.show()
 """
 
-# Put data into X & y numpy arrays and scale
+# Scale X data
 scaler = StandardScaler()
 X = np.zeros([price.shape[0], 2])
 X[:,0] = floor_area
 X[:,1] = bedrooms
 scaler.fit(X)
 X = scaler.transform(X)
+
+# Response variable is in 000 units
 y = price / 1000
 
 # Create train and test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, random_state=89)
-
-# Create torch tensor version of train/test data numpy arrays
-X_train_t = torch.from_numpy(X_train)
-X_test_t = torch.from_numpy(X_test)
-y_train_t = torch.from_numpy(y_train)
-y_test_t = torch.from_numpy(y_test)
-
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_state=my_random_state)
 
 # Cites:
 # https://livebook.manning.com/book/deep-learning-with-pytorch/chapter-6/v-13/153
@@ -104,8 +102,7 @@ with torch.no_grad():
     print(f"Total param count = {p_count}")
 
 # Define Adam optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=3e-3)
-#optimizer = torch.optim.SGD(model.parameters(), lr=1e-6)
+optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
 
 # Convert model and data to gpu/cpu tensors
 if torch.cuda.is_available():
@@ -122,13 +119,16 @@ else:
     y_test_t = torch.from_numpy(y_test).float()
 
 
-def mini_batch_indices(X_train, batch_size):
-    # Permute index to train data
-    idx = np.random.permutation(X_train.shape[0])
+def mini_batch_indices(X, batch_size):
 
-    # Split data into mini batches
-    n_batches = X_train.shape[0] // batch_size
+    # Permute the X index to effect shuffling
+    idx = np.random.permutation(X.shape[0])
 
+    # Number of mini batches
+    # Ignoring "left over data" that do not fit into full batch
+    n_batches = X.shape[0] // batch_size
+
+    # Create indices for each mini-batch
     indices = []
     for n_batch in range(n_batches):
         indices.append(idx[n_batch * batch_size:(n_batch + 1) * batch_size])
@@ -136,10 +136,11 @@ def mini_batch_indices(X_train, batch_size):
     return indices
 
 
-epochs = 100
+epochs = 300
 batch_size = 128
 train_loss_history = []
 val_loss_history = []
+np.random.seed(my_random_state)
 
 for epoch in range(epochs):
 
@@ -148,7 +149,7 @@ for epoch in range(epochs):
     train_mse = 0
 
     # Permute and split into training data into mini batches
-    mb_indices = mini_batch_indices(X_train=X_train, batch_size=batch_size)
+    mb_indices = mini_batch_indices(X=X_train, batch_size=batch_size)
 
     # Process data for each mini batch in training data
     for i_mb, mb_index in enumerate(mb_indices):
@@ -166,6 +167,8 @@ for epoch in range(epochs):
         y_hat = model(x_t)
 
         # Update mse for epoch
+        # mse in squared units
+        # mse is mean for the entire mini-batch
         mse = ((y_hat - y_t) ** 2).mean()
         train_mse += mse
 
@@ -176,15 +179,16 @@ for epoch in range(epochs):
         # Always call zero_grad first to start each time afresh
         optimizer.step()
 
-    # Normalize the epoch's traingin mse by dividing by number of observations
-    train_mse = train_mse / (i_mb * batch_size)
+    # Normalize the epoch's train mse by dividing by number of batches
+    # Each mse added to train_mse was already the mean for its mini-batch
+    train_mse = train_mse / i_mb
 
     # Now evaluate on validation data
     model.eval()
     val_mse = 0
 
     # Permute and split validation data into mini batches
-    mb_indices = mini_batch_indices(X_train=X_test, batch_size=batch_size)
+    mb_indices = mini_batch_indices(X=X_test, batch_size=batch_size)
 
     # Process data for each mini batch in validation data
     for i_mb, mb_index in enumerate(mb_indices):
@@ -199,7 +203,9 @@ for epoch in range(epochs):
         mse = ((y_hat - y_t) ** 2).mean()
         val_mse += mse
 
-    val_mse = val_mse / (i_mb * batch_size)
+    # Normalize the validation mse by dividing by number of batches
+    # Each mse added to val_mse was already the mean for its mini-batch
+    val_mse = val_mse / i_mb
 
     print(f"Epoch {epoch + 1}:  train_rmse={train_mse ** .5 :3.0f},000, val_rmse={val_mse ** .5 :3.0f},000")
 

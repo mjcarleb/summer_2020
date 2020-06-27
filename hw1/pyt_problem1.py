@@ -18,6 +18,7 @@ floor_area = pd.to_numeric(df.floorArea).to_numpy()
 bedrooms = df.bedrooms.to_numpy()
 price = floor_area * pd.to_numeric(df.pricePerSqFt).to_numpy()
 
+"""
 # Look at data before we model
 # Plot price vs. floor area
 fig, ax = plt.subplots(1, 1, figsize=(10,8))
@@ -27,6 +28,7 @@ ax.set_ylabel("price", fontsize=14)
 ax.scatter(floor_area, price)
 ax.grid(True)
 #plt.show()
+"""
 
 # Drop observations with floor area > 7500
 idx = np.where(floor_area > 7500)
@@ -35,6 +37,7 @@ bedrooms = np.delete(bedrooms, idx)
 price = np.delete(price, idx)
 
 # Look again
+"""
 fig, ax = plt.subplots(1, 1, figsize=(10,8))
 ax.set_title("Price vs. floor area", fontsize=18)
 ax.set_xlabel("floor area", fontsize=14)
@@ -42,6 +45,7 @@ ax.set_ylabel("price", fontsize=14)
 ax.scatter(floor_area, price)
 ax.grid(True)
 #plt.show()
+"""
 
 # Put data into X & y numpy arrays and scale
 scaler = StandardScaler()
@@ -91,6 +95,7 @@ model = TwoLayerModel(input_dim=2, hidden_dim=2, output_dim=1)
 
 # Define Adam optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-3)
+#optimizer = torch.optim.SGD(model.parameters(), lr=1e-6)
 
 
 def mini_batch_indices(X_train, batch_size):
@@ -107,7 +112,7 @@ def mini_batch_indices(X_train, batch_size):
     return indices
 
 
-epochs = 200
+epochs = 100
 batch_size = 128
 train_loss_history = []
 val_loss_history = []
@@ -121,7 +126,7 @@ for epoch in range(epochs):
     mb_indices = mini_batch_indices(X_train=X_train, batch_size=batch_size)
 
     # Process data for each mini batch
-    for i, mb_index in enumerate(mb_indices):
+    for i_mb, mb_index in enumerate(mb_indices):
         optimizer.zero_grad()
         model.zero_grad()
 
@@ -138,7 +143,7 @@ for epoch in range(epochs):
         train_mse += mse
 
     # Calcuate train loss after an epoch
-    train_mse = train_mse / i
+    train_mse = train_mse / (i_mb * batch_size)
 
     model.eval()
     val_mse = 0
@@ -147,7 +152,7 @@ for epoch in range(epochs):
     mb_indices = mini_batch_indices(X_train=X_test, batch_size=batch_size)
 
     # Process data for each mini batch
-    for i, mb_index in enumerate(mb_indices):
+    for i_mb, mb_index in enumerate(mb_indices):
 
         # Create tensors for mini batch
         x_t = torch.from_numpy(X_test[mb_index]).float()
@@ -159,7 +164,7 @@ for epoch in range(epochs):
         mse = ((y_hat - y_t) ** 2).mean()
         val_mse += mse
 
-    val_mse = val_mse/i
+    val_mse = val_mse / (i_mb * batch_size)
 
     print(f"Epoch {epoch + 1}:  train_rmse={train_mse ** .5 :3.0f},000, val_rmse={val_mse ** .5 :3.0f},000")
 
@@ -170,9 +175,9 @@ for epoch in range(epochs):
 fig, ax = plt.subplots(1, 1, figsize=(10,8))
 ax.set_title("Training and Validation Loss per Epoch", fontsize=18)
 ax.set_xlabel("epoch", fontsize=14)
-ax.set_ylabel("mse", fontsize=14)
-ax.plot(train_loss_history, label = "train loss")
-ax.plot(val_loss_history, label = "val loss")
+ax.set_ylabel("rmse", fontsize=14)
+ax.plot(np.array(train_loss_history) **.5, label = "train rmse")
+ax.plot(np.array(val_loss_history) ** .5, label = "val rmse")
 ax.legend(fontsize=14)
 ax.grid(True)
 plt.show()

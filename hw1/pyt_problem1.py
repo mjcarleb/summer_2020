@@ -93,6 +93,16 @@ class TwoLayerModel(nn.Module):
 # Create and show model
 model = TwoLayerModel(input_dim=2, hidden_dim=2, output_dim=1)
 
+with torch.no_grad():
+    p_count = 0
+    for i, p in enumerate(model.parameters()):
+        try:
+            p_count += p.size()[0] * p.size()[1]
+        except:
+            p_count += p.size()[0]
+        print(f"{type(p.data)}:  {p.size()}")
+    print(f"Total param count = {p_count}")
+
 # Define Adam optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-3)
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-6)
@@ -133,16 +143,20 @@ val_loss_history = []
 
 for epoch in range(epochs):
 
+    # Starting new epoch
     model.train()
     train_mse = 0
 
-    # Permute and split into mini batches
+    # Permute and split into training data into mini batches
     mb_indices = mini_batch_indices(X_train=X_train, batch_size=batch_size)
 
-    # Process data for each mini batch
+    # Process data for each mini batch in training data
     for i_mb, mb_index in enumerate(mb_indices):
-        optimizer.zero_grad()
+
+        # New mini-batch
+        # Always call zero_grad first to start each time afresh
         model.zero_grad()
+        optimizer.zero_grad()
 
         # Select mini batch
         x_t = X_train_t[mb_index]
@@ -151,26 +165,33 @@ for epoch in range(epochs):
         # Forward pass: Compute predicted y by passing x to the model
         y_hat = model(x_t)
 
+        # Update mse for epoch
         mse = ((y_hat - y_t) ** 2).mean()
-        mse.backward()
-        optimizer.step()
         train_mse += mse
 
-    # Calcuate train loss after an epoch
+        # Back propagate errors and partials
+        mse.backward()
+
+        # Update the weights based on partials
+        # Always call zero_grad first to start each time afresh
+        optimizer.step()
+
+    # Normalize the epoch's traingin mse by dividing by number of observations
     train_mse = train_mse / (i_mb * batch_size)
 
+    # Now evaluate on validation data
     model.eval()
     val_mse = 0
 
-    # Permute and split into mini batches
+    # Permute and split validation data into mini batches
     mb_indices = mini_batch_indices(X_train=X_test, batch_size=batch_size)
 
-    # Process data for each mini batch
+    # Process data for each mini batch in validation data
     for i_mb, mb_index in enumerate(mb_indices):
 
         # Select mini batch
-        x_t = X_train_t[mb_index]
-        y_t = y_train_t[mb_index]
+        x_t = X_test_t[mb_index]
+        y_t = y_test_t[mb_index]
 
         # Forward pass: Compute predicted y by passing x to the model
         y_hat = model(x_t)

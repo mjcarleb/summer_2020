@@ -10,6 +10,68 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from torch.utils.data import Dataset, DataLoader
+
+class SingaporeAptsDataset(Dataset):
+    """Singapore apartments dataset."""
+
+    def __init__(self, full_file_path):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        self.df = pd.read_csv(full_file_path)
+
+        badrows = self.df.index[self.df['floorArea'] == "sqft"].tolist()
+        self.df.drop(badrows, inplace=True)
+
+        floor_area = pd.to_numeric(self.df.floorArea).to_numpy()
+        outlier_idx = np.where(floor_area > 7500)
+        self.df.drop(outlier_idx[0], inplace=True)
+
+        self.df.reset_index(drop=True, inplace=True)
+
+    def __len__(self):
+        return  self.df.shape[0]
+
+    def __getitem__(self, idx):
+
+        observation = self.df.loc[idx]
+        features = (int(observation.floorArea), observation.bedrooms)
+        response = observation.value
+
+        return features, response
+
+my_dataset = SingaporeAptsDataset(full_file_path="Housing_Data.csv")
+
+#  PoC
+for i in range(len(my_dataset)):
+    features, response = my_dataset[i]
+
+# Use dataset with dataloader to produce mini batches
+dataloader = DataLoader(my_dataset, batch_size=128, shuffle=True)
+i=0
+for features, response in dataloader:
+    # Response is
+
+    i += 1
+
+    if i == 10:
+        floorArea = features[0]
+        bedrooms = features[1]
+        print(f"Shape of floorArea = {floorArea.shape}")
+        print(f"Sample of floorArea = {floorArea[5]}")
+
+        print(f"Shape of bedrooms = {bedrooms.shape}")
+        print(f"Sample of bedrooms = {bedrooms[5]}")
+
+        print(f"Shape of response = {response.shape}")
+        print(f"Sample of response = {response[5]}")
+        break
+
 # Use seed consistently to random processes
 my_random_state = 17
 

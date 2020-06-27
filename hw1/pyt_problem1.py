@@ -73,21 +73,21 @@ y_test_t = torch.from_numpy(y_test)
 class TwoLayerModel(nn.Module):
 
     def __init__(self, input_dim, hidden_dim, output_dim):
+        #super(TwoLayerModel, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
-        super().__init__()
 
         self.hidden_linear = nn.Linear(self.input_dim, self.hidden_dim)
-
         self.output_linear = nn.Linear(self.hidden_dim, self.output_dim)
 
     def forward(self, input):
-        hidden_t = self.hidden_linear(input)
-        activated_t = torch.relu(hidden_t)
-        output_t = self.output_linear(activated_t)
+        z0 = self.hidden_linear(input)
+        u0 = torch.relu(z0)
+        y_hat = self.output_linear(u0)
 
-        return output_t
+        return y_hat
 
 
 # Create and show model
@@ -96,6 +96,20 @@ model = TwoLayerModel(input_dim=2, hidden_dim=2, output_dim=1)
 # Define Adam optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-3)
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-6)
+
+# Convert model and data to gpu/cpu tensors
+if torch.cuda.is_available():
+    model.cuda()
+    X_train_t = torch.from_numpy(X_train).cuda().float()
+    y_train_t = torch.from_numpy(y_train).cuda().float()
+    X_test_t = torch.from_numpy(X_test).cuda().float()
+    y_test_t = torch.from_numpy(y_test).cuda().float()
+else:
+    model.cpu()
+    X_train_t = torch.from_numpy(X_train).float()
+    y_train_t = torch.from_numpy(y_train).float()
+    X_test_t = torch.from_numpy(X_test).float()
+    y_test_t = torch.from_numpy(y_test).float()
 
 
 def mini_batch_indices(X_train, batch_size):
@@ -130,9 +144,9 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         model.zero_grad()
 
-        # Create tensors for mini batch
-        x_t = torch.from_numpy(X_train[mb_index]).float()
-        y_t = torch.from_numpy(y_train[mb_index]).float()
+        # Select mini batch
+        x_t = X_train_t[mb_index]
+        y_t = y_train_t[mb_index]
 
         # Forward pass: Compute predicted y by passing x to the model
         y_hat = model(x_t)
@@ -154,9 +168,9 @@ for epoch in range(epochs):
     # Process data for each mini batch
     for i_mb, mb_index in enumerate(mb_indices):
 
-        # Create tensors for mini batch
-        x_t = torch.from_numpy(X_test[mb_index]).float()
-        y_t = torch.from_numpy(y_test[mb_index]).float()
+        # Select mini batch
+        x_t = X_train_t[mb_index]
+        y_t = y_train_t[mb_index]
 
         # Forward pass: Compute predicted y by passing x to the model
         y_hat = model(x_t)

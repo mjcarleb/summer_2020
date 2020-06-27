@@ -91,6 +91,14 @@ class TwoLayerModel(nn.Module):
 # Create and show model
 model = TwoLayerModel(input_dim=2, hidden_dim=2, output_dim=1)
 
+# https://stackoverflow.com/questions/49433936/how-to-initialize-weights-in-pytorch
+def init_all(model, init_func, *params, **kwargs):
+    for p in model.parameters():
+        init_func(p, *params, **kwargs)
+
+#init_all(model, torch.nn.init.normal_, mean=0., std=1)
+init_all(model, torch.nn.init.constant_, 0.1)
+
 with torch.no_grad():
     p_count = 0
     for i, p in enumerate(model.parameters()):
@@ -100,9 +108,6 @@ with torch.no_grad():
             p_count += p.size()[0]
         print(f"{type(p.data)}:  {p.size()}")
     print(f"Total param count = {p_count}")
-
-# Define Adam optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
 
 # Convert model and data to gpu/cpu tensors
 if torch.cuda.is_available():
@@ -136,11 +141,16 @@ def mini_batch_indices(X, batch_size):
     return indices
 
 
-epochs = 300
+epochs = 100
+lr = 2e-3
 batch_size = 128
 train_loss_history = []
 val_loss_history = []
 np.random.seed(my_random_state)
+
+# Define Adam optimizer
+#optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
 for epoch in range(epochs):
 
